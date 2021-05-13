@@ -4,7 +4,7 @@ use chooser_collector::MainState;
 use eyre::Result;
 
 fn main() -> Result<()> {
-    let main_state = match MainState::new() {
+    let mut main_state = match MainState::new() {
         Ok(state) => state,
         Err(error) => {
             eprintln!("Error: {}", error);
@@ -17,7 +17,5 @@ fn main() -> Result<()> {
         exit(0);
     }
 
-    dbg!(main_state.arguments);
-
-    Ok(())
+    main_state.run()
 }
