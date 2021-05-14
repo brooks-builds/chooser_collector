@@ -27,7 +27,7 @@ impl InteractiveMode {
 
 impl CollectionMode for InteractiveMode {
     fn run(
-        &self,
+        &mut self,
         sender: crossbeam::channel::Sender<Choice>,
     ) -> std::result::Result<(), eyre::Report> {
         println!("Collecting choices interactively\n");

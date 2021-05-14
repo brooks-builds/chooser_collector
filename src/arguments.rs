@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use eyre::{bail, Result};
 
 pub const HELP: &str = "\
@@ -17,9 +19,11 @@ OPTIONS:
 
 -i, --interactive (default) Collect choices by being interactively asked for the choice name and the color one at a time
 -f, --file filename         Read choice names from a file and generate a choices file from the names
--t, --twitch                Collect choices by reading from twitch chat
+-t, --twitch DESCRIPTION    Collect choices by reading from twitch chat. With the Description of what chatters are entering for.
 -c, --command command       Command to listen for in Twitch chat. Whatever this is will have a ! added to the front of it. By default \"here\" is used
 -o, --output                File name to write to. By default the file name is choices.json
+-d, --deadline              How long will we wait for twitch chat to collect choices before stopping listening to chat
+
 
 EXAMPLES:
 
@@ -29,8 +33,10 @@ chooser_collector -f game_names -o game_choices.json
 
 chooser_collector -t -c addme
 ";
-const DEFAULT_TWITCH_COMMAND: &str = "HERE";
+const DEFAULT_TWITCH_COMMAND: &str = "here";
 const DEFAULT_OUTPUT_FILE: &str = "choices.json";
+const DEFAULT_DEADLINE: Duration = Duration::from_secs(60);
+const DEFAULT_DESCRIPTION: &str = "something awesome";
 
 #[derive(Debug)]
 pub struct Arguments {
@@ -40,6 +46,8 @@ pub struct Arguments {
     pub twitch_command: String,
     pub output_file: String,
     pub help: bool,
+    pub deadline: Duration,
+    pub description: String,
 }
 
 impl Arguments {
@@ -53,10 +61,11 @@ impl Arguments {
         }
 
         arguments.set_interactive_mode(&mut pico_arguments);
-        arguments.set_twitch_mode(&mut pico_arguments);
+        arguments.set_twitch_mode(&mut pico_arguments)?;
         arguments.set_file(&mut pico_arguments)?;
         arguments.set_twitch_command(&mut pico_arguments)?;
         arguments.set_output_file(&mut pico_arguments)?;
+        arguments.set_deadline(&mut pico_arguments)?;
 
         arguments.validate()?;
 
@@ -69,11 +78,18 @@ impl Arguments {
         }
     }
 
-    fn set_twitch_mode(&mut self, pico_arguments: &mut pico_args::Arguments) {
-        self.twitch_mode = pico_arguments.contains(["-t", "--twitch"]);
+    fn set_twitch_mode(&mut self, pico_arguments: &mut pico_args::Arguments) -> Result<()> {
+        let keys = ["-t", "--twitch"];
+        let description = pico_arguments
+            .opt_value_from_str(keys)?
+            .unwrap_or_else(|| "".to_owned());
+        self.twitch_mode = !description.is_empty();
         if self.twitch_mode {
             self.interactive_mode = false;
         }
+
+        self.description = description;
+        Ok(())
     }
 
     fn set_file(&mut self, pico_arguments: &mut pico_args::Arguments) -> Result<()> {
@@ -94,6 +110,13 @@ impl Arguments {
     fn set_output_file(&mut self, pico_arguments: &mut pico_args::Arguments) -> Result<()> {
         if let Some(filename) = pico_arguments.opt_value_from_str(["-o", "--output"])? {
             self.output_file = filename;
+        }
+        Ok(())
+    }
+
+    fn set_deadline(&mut self, pico_arguments: &mut pico_args::Arguments) -> Result<()> {
+        if let Some(deadline) = pico_arguments.opt_value_from_str(["-d", "--deadline"])? {
+            self.deadline = Duration::from_secs(deadline);
         }
         Ok(())
     }
@@ -124,6 +147,8 @@ impl Default for Arguments {
             twitch_command: DEFAULT_TWITCH_COMMAND.to_owned(),
             output_file: DEFAULT_OUTPUT_FILE.to_owned(),
             help: false,
+            deadline: DEFAULT_DEADLINE,
+            description: DEFAULT_DESCRIPTION.to_string(),
         }
     }
 }

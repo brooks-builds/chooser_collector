@@ -1,17 +1,21 @@
 use std::fs::File;
 use std::io::Write;
+use std::sync::mpsc::{Receiver, Sender};
 
 use arguments::Arguments;
 use choice::Choice;
 use eyre::{bail, Result};
 use interactive_mode::InteractiveMode;
+use twitch_chat_wrapper::ChatMessage;
+use twitch_mode::TwitchMode;
 
 mod arguments;
 mod choice;
 mod interactive_mode;
+mod twitch_mode;
 
 trait CollectionMode {
-    fn run(&self, sender: crossbeam::channel::Sender<Choice>) -> Result<()>;
+    fn run(&mut self, sender: crossbeam::channel::Sender<Choice>) -> Result<()>;
 }
 
 pub struct MainState {
@@ -22,11 +26,20 @@ pub struct MainState {
 }
 
 impl MainState {
-    pub fn new() -> Result<Self> {
+    pub fn new(
+        send_to_twitch: Sender<String>,
+        receive_from_twitch: Receiver<ChatMessage>,
+    ) -> Result<Self> {
         let arguments = Arguments::new()?;
         let (sender, receiver) = crossbeam::channel::unbounded();
-        let collector = if arguments.interactive_mode {
+        let collector: Box<dyn CollectionMode> = if arguments.interactive_mode {
             Box::new(InteractiveMode::default())
+        } else if arguments.twitch_mode {
+            Box::new(TwitchMode::new(
+                send_to_twitch,
+                receive_from_twitch,
+                &arguments,
+            )?)
         } else {
             bail!("no collector available");
         };
