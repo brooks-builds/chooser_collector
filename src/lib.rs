@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::Write;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::channel;
+use std::thread::spawn;
 
 use arguments::Arguments;
 use choice::Choice;
@@ -26,15 +27,17 @@ pub struct MainState {
 }
 
 impl MainState {
-    pub fn new(
-        send_to_twitch: Sender<String>,
-        receive_from_twitch: Receiver<ChatMessage>,
-    ) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let arguments = Arguments::new()?;
         let (sender, receiver) = crossbeam::channel::unbounded();
         let collector: Box<dyn CollectionMode> = if arguments.interactive_mode {
             Box::new(InteractiveMode::default())
         } else if arguments.twitch_mode {
+            let (send_to_twitch, receive_from_chooser) = channel::<String>();
+            let (send_to_chooser, receive_from_twitch) = channel::<ChatMessage>();
+            spawn(|| {
+                twitch_chat_wrapper::run(receive_from_chooser, send_to_chooser).unwrap();
+            });
             Box::new(TwitchMode::new(
                 send_to_twitch,
                 receive_from_twitch,
