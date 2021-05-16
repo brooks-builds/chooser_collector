@@ -57,7 +57,11 @@ impl MainState {
         self.receiver.try_iter().for_each(|choice| {
             choices.push(choice);
         });
-        self.save_to_disk(choices, &self.arguments)?;
+        if self.arguments.standard_out {
+            self.print_to_std_out(choices)?;
+        } else {
+            self.save_to_disk(choices, &self.arguments)?;
+        }
         Ok(())
     }
 
@@ -65,6 +69,11 @@ impl MainState {
         let mut buffer = File::create(&arguments.output_file)?;
         let json = serde_json::to_string(&choices)?;
         buffer.write_all(json.as_bytes())?;
+        Ok(())
+    }
+
+    fn print_to_std_out(&self, choices: Vec<Choice>) -> Result<()> {
+        print!("{}", serde_json::to_string(&choices)?);
         Ok(())
     }
 }

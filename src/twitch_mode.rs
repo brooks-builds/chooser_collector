@@ -74,7 +74,7 @@ impl CollectionMode for TwitchMode {
                 let choice = Choice::new(name.clone(), Some(color));
                 sender.send(choice)?;
                 self.who_has_entered.insert(name.clone());
-                println!("Thanks for entering {}", name);
+                eprintln!("Thanks for entering {}", name);
             }
         }
         Ok(())

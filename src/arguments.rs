@@ -23,6 +23,7 @@ OPTIONS:
 -c, --command command       Command to listen for in Twitch chat. Whatever this is will have a ! added to the front of it. By default \"here\" is used
 -o, --output                File name to write to. By default the file name is choices.json
 -d, --deadline              How long will we wait for twitch chat to collect choices before stopping listening to chat
+-s, --standard-out          Print the resulting json file to standard out instead of to a file
 
 
 EXAMPLES:
@@ -48,6 +49,7 @@ pub struct Arguments {
     pub help: bool,
     pub deadline: Duration,
     pub description: String,
+    pub standard_out: bool,
 }
 
 impl Arguments {
@@ -66,6 +68,7 @@ impl Arguments {
         arguments.set_twitch_command(&mut pico_arguments)?;
         arguments.set_output_file(&mut pico_arguments)?;
         arguments.set_deadline(&mut pico_arguments)?;
+        arguments.set_standard_out(&mut pico_arguments);
 
         arguments.validate()?;
 
@@ -121,6 +124,10 @@ impl Arguments {
         Ok(())
     }
 
+    fn set_standard_out(&mut self, pico_arguments: &mut pico_args::Arguments) {
+        self.standard_out = pico_arguments.contains(["-s", "--standard-out"]);
+    }
+
     fn validate(&self) -> Result<()> {
         if self.interactive_mode && self.twitch_mode {
             bail!("Cannot have interactive mode and twitch mode set at the same time");
@@ -149,6 +156,7 @@ impl Default for Arguments {
             help: false,
             deadline: DEFAULT_DEADLINE,
             description: DEFAULT_DESCRIPTION.to_string(),
+            standard_out: false,
         }
     }
 }
